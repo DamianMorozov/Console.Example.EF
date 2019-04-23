@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Console.Example.EF
 {
-    internal class Program
+    class Program
     {
-        private static void Main(string[] args)
+        static void Main(string[] args)
         {
-            System.Console.ReadKey();
         }
     }
 }

@@ -1,15 +1,21 @@
-﻿using System.Data.SqlClient;
+﻿using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Linq;
 
 namespace Console.Example.EF
 {
     internal class Program
     {
-        private static void Main(string[] args)
+        private static void Main()
         {
             var builder = CreateSqlConnection();
-            SqlConnect(builder);
 
+            //SqlConnect(builder);
             System.Console.WriteLine();
+
+            EfConnect(builder);
+            System.Console.WriteLine();
+
             System.Console.WriteLine("Press any key to finish...");
             System.Console.ReadKey(true);
         }
@@ -45,10 +51,13 @@ namespace Console.Example.EF
                     var table = "EMPLOYEES";
                     DropDb(con, db);
                     DropTable(con, db, table);
-                    if (CreateDb(con, db) && CreateTable(con, db, table))
+                    if (CreateDb(con, db))
                     {
-                        InsertData(con, db, table);
-                        SelectData(con, db, table);
+                        if (CreateTable(con, db, table))
+                        {
+                            InsertData(con, db, table);
+                            SelectData(con, db, table);
+                        }
                     }
                 }
             }
@@ -213,6 +222,92 @@ SELECT ID, NAME, LOCATION FROM {table}
                 System.Console.WriteLine($"  - error: {exception.Message}!");
             }
             return false;
+        }
+
+        private static void EfConnect(SqlConnectionStringBuilder builder)
+        {
+            System.Console.WriteLine("Try Sql connect.");
+            try
+            {
+                using (var con = new SqlConnection(builder.ConnectionString))
+                {
+                    con.Open();
+                    System.Console.WriteLine("  - Sql connect is opened.");
+                    builder.InitialCatalog = "SAMPLE";
+                    using (var context = new ClassEFSampleContext(builder.ConnectionString))
+                    {
+                        System.Console.WriteLine("Created database schema from C# classes.");
+
+                        // Create demo: Create a User instance and save it to the database
+                        User newUser = new User { FirstName = "Anna", LastName = "Shrestinian" };
+                        context.Users.Add(newUser);
+                        context.SaveChanges();
+                        System.Console.WriteLine("\nCreated User: " + newUser.ToString());
+
+                        // Create demo: Create a Task instance and save it to the database
+                        Task newTask = new Task() { Title = "Ship Helsinki", IsComplete = false,
+                            DueDate = System.DateTime.Parse("04-01-2017") };
+                        context.Tasks.Add(newTask);
+                        context.SaveChanges();
+                        System.Console.WriteLine("\nCreated Task: " + newTask.ToString());
+
+                        // Association demo: Assign task to user
+                        newTask.AssignedTo = newUser;
+                        context.SaveChanges();
+                        System.Console.WriteLine("\nAssigned Task: '" + newTask.Title + "' to user '" + newUser.GetFullName() + "'");
+
+                        // Read demo: find incomplete tasks assigned to user 'Anna'
+                        System.Console.WriteLine("\nIncomplete tasks assigned to 'Anna':");
+                        var query = from t in context.Tasks
+                                    where t.IsComplete == false &&
+                                    t.AssignedTo.FirstName.Equals("Anna")
+                                    select t;
+                        foreach (var t in query)
+                        {
+                            System.Console.WriteLine(t.ToString());
+                        }
+
+                        // Update demo: change the 'dueDate' of a task
+                        Task taskToUpdate = context.Tasks.First(); // get the first task
+                        System.Console.WriteLine("\nUpdating task: " + taskToUpdate.ToString());
+                        taskToUpdate.DueDate = System.DateTime.Parse("06-30-2016");
+                        context.SaveChanges();
+                        System.Console.WriteLine("dueDate changed: " + taskToUpdate.ToString());
+
+                        // Delete demo: delete all tasks with a dueDate in 2016
+                        System.Console.WriteLine("\nDeleting all tasks with a dueDate in 2016");
+                        System.DateTime dueDate2016 = System.DateTime.Parse("12-31-2016");
+                        query = from t in context.Tasks
+                                where t.DueDate < dueDate2016
+                                select t;
+                        foreach (Task t in query)
+                        {
+                            System.Console.WriteLine("Deleting task: " + t.ToString());
+                            context.Tasks.Remove(t);
+                        }
+                        context.SaveChanges();
+
+                        // Show tasks after the 'Delete' operation - there should be 0 tasks
+                        System.Console.WriteLine("\nTasks after delete:");
+                        List<Task> tasksAfterDelete = (from t in context.Tasks select t).ToList<Task>();
+                        if (tasksAfterDelete.Count == 0)
+                        {
+                            System.Console.WriteLine("[None]");
+                        }
+                        else
+                        {
+                            foreach (Task t in query)
+                            {
+                                System.Console.WriteLine(t.ToString());
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
         }
     }
 }

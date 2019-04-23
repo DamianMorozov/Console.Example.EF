@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Data.SqlClient;
 
 namespace Console.Example.EF
 {
@@ -24,39 +19,200 @@ namespace Console.Example.EF
             System.Console.WriteLine("Create new SqlConnectionStringBuilder.");
             var builder = new SqlConnectionStringBuilder() {
                 Authentication = SqlAuthenticationMethod.ActiveDirectoryIntegrated,
-                //UserID = Environment.UserName,
+                TrustServerCertificate = true,
                 DataSource = "tcp:localhost",
                 InitialCatalog = "master",
                 ConnectTimeout = 30,
-                TrustServerCertificate = true,
             };
-            System.Console.WriteLine($"  builder.Authentication: {builder.Authentication}.");
-            System.Console.WriteLine($"  builder.DataSource: {builder.DataSource}.");
-            System.Console.WriteLine($"  builder.InitialCatalog: {builder.InitialCatalog}.");
+            System.Console.WriteLine($"  - Authentication: {builder.Authentication}.");
+            System.Console.WriteLine($"  - TrustServerCertificate: {builder.TrustServerCertificate}.");
+            System.Console.WriteLine($"  - DataSource: {builder.DataSource}.");
+            System.Console.WriteLine($"  - InitialCatalog: {builder.InitialCatalog}.");
+            System.Console.WriteLine($"  - ConnectTimeout: {builder.ConnectTimeout}.");
             return builder;
         }
 
         private static void SqlConnect(SqlConnectionStringBuilder builder)
         {
-            System.Console.WriteLine("Sql try connect.");
+            System.Console.WriteLine("Try Sql connect.");
             try
             {
                 using (var con = new SqlConnection(builder.ConnectionString))
                 {
-                    System.Console.WriteLine("  Sql is connected.");
                     con.Open();
-                    System.Console.WriteLine("  Sql connect is opened.");
-
-
+                    System.Console.WriteLine("  - Sql connect is opened.");
+                    var db = "SAMPLE";
+                    var table = "EMPLOYEES";
+                    DropDb(con, db);
+                    DropTable(con, db, table);
+                    if (CreateDb(con, db) && CreateTable(con, db, table))
+                    {
+                        InsertData(con, db, table);
+                        SelectData(con, db, table);
+                    }
                 }
-
             }
             catch (SqlException exception)
             {
-                System.Console.WriteLine($"  Sql error: {exception.Message}!");
+                System.Console.WriteLine($"  - error: {exception.Message}!");
             }
         }
 
-        
+        private static bool DropDb(SqlConnection con, string db)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try dropping database '{db}'.");
+                var query = $@"
+DROP DATABASE IF EXISTS [{db}]
+                    ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Console.WriteLine("  - droping database is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
+
+        private static bool CreateDb(SqlConnection con, string db)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try creating database '{db}'.");
+                var query = $@"
+IF NOT EXISTS (SELECT NAME FROM SYS.DATABASES WHERE NAME = N'{db}')
+    CREATE DATABASE [{db}]
+                    ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Console.WriteLine("  - create database is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
+
+        private static bool DropTable(SqlConnection con, string db, string table)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try droping table '{table}'.");
+                var query = $@"
+USE [{db}];
+IF EXISTS (SELECT NAME FROM SYS.TABLES WHERE NAME = N'{table}')
+DROP TABLE [{table}]
+                ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Console.WriteLine("  - droping table is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
+
+        private static bool CreateTable(SqlConnection con, string db, string table)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try creating table '{table}'.");
+                var query = $@"
+USE [{db}];
+IF NOT EXISTS (SELECT NAME FROM SYS.TABLES WHERE NAME = N'{table}')
+CREATE TABLE {table} (
+    ID INT IDENTITY(1,1) NOT NULL PRIMARY KEY, 
+    NAME NVARCHAR(50), 
+    LOCATION NVARCHAR(50) 
+); 
+                ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Console.WriteLine("  - creating table is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
+
+        private static bool InsertData(SqlConnection con, string db, string table)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try inserting data into table '{table}'.");
+                var query = $@"
+USE [{db}];
+INSERT INTO {table} (NAME, LOCATION) VALUES 
+    (N'Jared', N'Australia'), 
+    (N'Nikita', N'India'), 
+    (N'Tom', N'Germany'); 
+                ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.ExecuteNonQuery();
+                    System.Console.WriteLine("  - inserting rows into table is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
+
+        private static bool SelectData(SqlConnection con, string db, string table)
+        {
+            try
+            {
+                System.Console.WriteLine($"Try reading data from table '{table}'.");
+                var query = $@"
+USE [{db}];
+SELECT ID, NAME, LOCATION FROM {table} 
+                ".TrimStart('\r', ' ', '\n').TrimEnd('\r', ' ', '\n');
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                System.Console.WriteLine(
+                                    $"{reader.GetInt32(0)} {reader.GetString(1)} {reader.GetString(2)}");
+                            }
+                        }
+                    }
+
+                    System.Console.WriteLine("  - reading rows from table is finished.");
+                }
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                System.Console.WriteLine($"  - error: {exception.Message}!");
+            }
+            return false;
+        }
     }
 }

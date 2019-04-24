@@ -51,15 +51,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClassEFSampleContext.cs" />
-    <Compile Include="ClassTask.cs" />
-    <Compile Include="ClassUser.cs" />
+    <Compile Include="DataModel\DbContext.cs" />
+    <Compile Include="DataModel\Tables\Iris.cs" />
+    <Compile Include="DataModel\Tables\Task.cs" />
+    <Compile Include="DataModel\Tables\User.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="iris-data.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
